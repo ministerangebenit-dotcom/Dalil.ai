@@ -1,9 +1,11 @@
+import './index.css'
+
 export default function App() {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Dalil</h1>
-      <p>Cameroon Procedural AI Guide</p>
-      <p style={{ color: 'green' }}>✅ Deployed successfully!</p>
+    <div className="p-8 font-sans">
+      <h1 className="text-2xl font-bold text-primary">Dalil</h1>
+      <p className="text-muted-foreground">Cameroon Procedural AI Guide</p>
+      <p className="text-green-600 mt-2">✅ Batch 1 deployed - Tailwind working!</p>
     </div>
   )
 }
