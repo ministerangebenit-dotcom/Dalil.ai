@@ -10,26 +10,24 @@ interface Message {
 export function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   return (
-    <div className={`flex gap-3 mb-6 ${isUser ? 'justify-end' : ''}`}>
+    <div className={`flex gap-3 mb-8 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white flex-shrink-0 mt-1">
-          <Bot size={16} />
+        <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+          <Bot size={15} className="text-white" />
         </div>
       )}
-      <div className={`max-w-[85%] ${isUser ? 'order-1' : ''}`}>
+      <div className={`${isUser ? 'max-w-[75%]' : 'flex-1 min-w-0'}`}>
         {isUser ? (
-          <div className="bg-gray-100 px-4 py-3 rounded-2xl rounded-br-sm text-gray-800">
+          <div className="bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed shadow-sm">
             {message.content}
           </div>
         ) : (
-          <div className="w-full">
-            <ProceduralAnswer data={message.content} />
-          </div>
+          <ProceduralAnswer data={message.content} />
         )}
       </div>
       {isUser && (
-        <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-1">
-          <User size={16} />
+        <div className="w-8 h-8 rounded-xl bg-[var(--dalil-surface)] border border-border flex items-center justify-center shrink-0 mt-0.5">
+          <User size={14} className="text-muted-foreground" />
         </div>
       )}
     </div>
