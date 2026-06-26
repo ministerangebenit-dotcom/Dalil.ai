@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { SearchBar } from './components/SearchBar';
 import './index.css'
 
 export default function App() {
