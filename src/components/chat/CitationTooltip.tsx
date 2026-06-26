@@ -1,23 +1,57 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { ExternalLink } from 'lucide-react';
+import { Button } from '../ui/button';
+import { ShieldCheck } from 'lucide-react';
 
-interface Source { title: string; url: string; snippet: string; }
+interface Source {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+function isSovereign(url: string): boolean {
+  return url.includes('.cm') || url.includes('gouvernement') || url.includes('ministered') || url.includes('prc.cm');
+}
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
 
 export function CitationTooltip({ index, source }: { index: number; source: Source }) {
+  const domain = extractDomain(source.url);
+  const sovereign = isSovereign(source.url);
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 text-[10px] font-mono font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors">
-          {index}
-        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 rounded-full text-xs font-medium flex items-center gap-1 bg-white/80 backdrop-blur-sm border-gray-200 hover:border-primary"
+        >
+          <span className="text-muted-foreground">{domain}</span>
+          {sovereign && <ShieldCheck className="h-3 w-3 text-yellow-500" />}
+        </Button>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
-        <a href={source.url} target="_blank" rel="noopener noreferrer"
-          className="flex items-start gap-1.5 text-blue-600 dark:text-blue-400 font-medium text-xs mb-1 hover:underline">
-          <ExternalLink size={10} className="mt-0.5 shrink-0" />
+      <TooltipContent side="top" className="max-w-xs p-3">
+        <a
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary font-medium underline text-sm block mb-1"
+        >
           {source.title}
         </a>
-        <p className="text-xs text-muted-foreground leading-relaxed">{source.snippet}</p>
+        <p className="text-xs text-muted-foreground">{source.snippet}</p>
+        {sovereign && (
+          <div className="mt-1.5 flex items-center gap-1 text-xs text-yellow-600">
+            <ShieldCheck className="h-3 w-3" />
+            Sovereign Verified
+          </div>
+        )}
       </TooltipContent>
     </Tooltip>
   );
