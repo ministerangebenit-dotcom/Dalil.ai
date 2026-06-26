@@ -2,8 +2,7 @@ import { Card, CardContent } from '../ui/card';
 import { StepCard } from './StepCard';
 import { CitationTooltip } from './CitationTooltip';
 import { TooltipProvider } from '../ui/tooltip';
-import { Clock, DollarSign, AlertTriangle, BrainCircuit, ExternalLink } from 'lucide-react';
-
+import { Clock, DollarSign, AlertTriangle, BrainCircuit, ExternalLink, ShieldCheck } from 'lucide-react';
 interface Source {
   title: string;
   url: string;
