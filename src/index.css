@@ -4,112 +4,161 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 15% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 10%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 15% 25%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 50%;
-    --accent: 220 14% 94%;
-    --accent-foreground: 220 15% 20%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --background: 160 84% 10%;
+    --foreground: 60 30% 96%;
+    --card: 160 60% 12%;
+    --card-foreground: 60 30% 96%;
+    --popover: 160 60% 12%;
+    --popover-foreground: 60 30% 96%;
+    --primary: 43 96% 56%;
+    --primary-foreground: 160 84% 8%;
+    --secondary: 160 40% 16%;
+    --secondary-foreground: 60 20% 85%;
+    --muted: 160 40% 14%;
+    --muted-foreground: 160 20% 55%;
+    --accent: 160 40% 18%;
+    --accent-foreground: 60 30% 96%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 60 30% 96%;
+    --border: 160 30% 20%;
+    --input: 160 30% 18%;
+    --ring: 43 96% 56%;
     --radius: 0.75rem;
-    --dalil-blue: #2563EB;
-    --dalil-blue-light: #EFF6FF;
-    --dalil-green: #059669;
-    --dalil-green-light: #ECFDF5;
-    --dalil-amber: #D97706;
-    --dalil-amber-light: #FFFBEB;
-    --dalil-surface: #F8FAFC;
-    --dalil-border: #E2E8F0;
+    --gold: #fbbf24;
+    --gold-dim: rgba(251,191,36,0.15);
+    --gold-border: rgba(251,191,36,0.3);
+    --glass-bg: rgba(255,255,255,0.05);
+    --glass-border: rgba(255,255,255,0.1);
+    --glass-blur: blur(15px);
+    --forest: #064e3b;
+    --forest-light: #065f46;
+    --surface: rgba(6,78,59,0.6);
   }
-.dark {
-  --background: 160 50% 8%;        /* deep green-black */
-  --foreground: 40 30% 90%;
-  --primary: 45 50% 55%;           /* gold */
-  --primary-foreground: 0 0% 10%;
-  --secondary: 160 30% 15%;
-  --accent: 45 40% 50%;
-  --border: 160 20% 20%;
-  /* ... adjust other variables as needed */
+  * { @apply border-border; box-sizing: border-box; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    background: #032b22;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(6,78,59,0.8) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(4,50,35,0.6) 0%, transparent 60%);
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--gold-border); border-radius: 99px; }
 }
 
-  * { @apply border-border; box-sizing: border-box; }
-  body { @apply bg-background text-foreground; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
 }
-/* Glassmorphism 2.0 */
 .glass-card {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255,255,255,0.04);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
 }
-.dark .glass-card {
-  background: rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-/* ─── Glassmorphism 2.0 ─── */
-.glass-card {
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-.dark .glass-card {
-  background: rgba(15, 23, 20, 0.45);
-  border-color: rgba(255, 255, 255, 0.06);
-}
-
-.glass-card-strong {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-.dark .glass-card-strong {
-  background: rgba(10, 20, 15, 0.6);
-  border-color: rgba(200, 170, 80, 0.15);
-}
-
-/* ─── Sovereign shield indicator ─── */
-.sovereign-shield {
+.gold-text { color: var(--gold); }
+.gold-border { border-color: var(--gold-border) !important; }
+.sovereign-badge {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  background: linear-gradient(135deg, #C9A84C, #E8D48B);
-  color: #3D2B00;
-  font-size: 9px;
+  gap: 4px;
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  color: var(--gold);
+  font-size: 10px;
   font-weight: 600;
-  padding: 1px 6px;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
   border-radius: 99px;
-  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
-.dark .sovereign-shield {
-  background: linear-gradient(135deg, #8B6914, #C9A84C);
-  color: #FFF8E7;
+.pulse-dot {
+  width: 6px; height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse-glow 2s ease-in-out infinite;
 }
-
-/* ─── Reasoning pulse ─── */
-.reasoning-dot {
-  animation: reasoning-pulse 1.8s ease-in-out infinite;
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
 }
-.reasoning-dot:nth-child(2) { animation-delay: 0.3s; }
-.reasoning-dot:nth-child(3) { animation-delay: 0.6s; }
-
-@keyframes reasoning-pulse {
-  0%, 100% { opacity: 0.4; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.1); }
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.scanning-text {
+  background: linear-gradient(90deg, #6ee7b7 0%, #fbbf24 40%, #6ee7b7 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2.5s linear infinite;
+  font-size: 11px;
+  font-weight: 500;
+}
+.toggle-option {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  color: hsl(var(--muted-foreground));
+  border: none;
+  background: transparent;
+  white-space: nowrap;
+}
+.toggle-option.active {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border: 1px solid var(--gold-border);
+  transform: scale(1.04);
+}
+.toggle-option:not(.active):hover {
+  background: var(--glass-bg);
+  color: hsl(var(--foreground));
+}
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.source-chip {
+  display: flex;
+  align-items: center;
+  gap-8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: default;
+  transition: border-color 0.2s;
+  gap: 8px;
+}
+.source-chip:hover { border-color: var(--gold-border); }
+.source-chip.official { border-color: rgba(251,191,36,0.2); }
+.law-card {
+  background: rgba(251,191,36,0.05);
+  border: 1px solid var(--gold-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.contact-card {
+  background: rgba(16,185,129,0.05);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.step-line {
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--gold-border), transparent);
 }
