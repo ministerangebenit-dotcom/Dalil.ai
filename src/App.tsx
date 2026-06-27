@@ -44,6 +44,7 @@ export default function App() {
   const isEmpty = messages.length === 0;
 
   return (
+    <main className="flex-1 overflow-y-auto px-4 py-6 bg-gradient-to-b from-white to-blue-50/30">
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="hidden md:flex flex-col w-64 border-r border-border bg-[var(--dalil-surface)] shrink-0">
         <div className="p-5 border-b border-border">
@@ -98,7 +99,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+       <main className="flex-1 overflow-y-auto px-4 py-6 bg-gradient-to-b from-white to-blue-50/30">
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center min-h-full px-6 py-16">
               <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center mb-6 shadow-lg shadow-blue-600/20">
