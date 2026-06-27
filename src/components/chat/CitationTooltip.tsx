@@ -1,49 +1,39 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { ExternalLink, ShieldCheck } from 'lucide-react';
+import { ExternalLink, Shield } from 'lucide-react';
 
-interface Source { title: string; url: string; snippet: string; }
+interface Source { title: string; url: string; snippet: string; domain: string; isOfficial: boolean; }
 
-function isSovereign(url: string): boolean {
-  return url.includes('.cm') || url.includes('gouvernement') || url.includes('minfi.gov') || url.includes('cnps.cm') || url.includes('ministered');
-}
-
-function extractDomain(url: string): string {
-  try {
-    const h = new URL(url).hostname.replace('www.', '');
-    // Shorten long domains
-    return h.length > 22 ? h.slice(0, 20) + '…' : h;
-  } catch {
-    return url.length > 18 ? url.slice(0, 16) + '…' : url;
-  }
-}
-
-export function CitationTooltip({ index, source }: { index: number; source: Source }) {
-  const domain = extractDomain(source.url);
-  const sovereign = isSovereign(source.url);
-
+export function CitationChip({ index, source, small }: { index: number; source: Source; small?: boolean }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-white/70 dark:bg-gray-900/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-[11px] font-medium text-muted-foreground hover:border-blue-300 dark:hover:border-blue-700 hover:text-foreground transition-all shadow-sm">
-          <span className="truncate max-w-[90px]">{domain}</span>
-          {sovereign && (
-            <span className="sovereign-shield flex items-center gap-0.5">
-              <ShieldCheck size={9} />
-            </span>
-          )}
-        </button>
+        
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`inline-flex items-center gap-1.5 rounded-full border transition-all no-underline hover:opacity-90
+            ${source.isOfficial
+              ? 'bg-[var(--gold-dim)] border-[var(--gold-border)] gold-text'
+              : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[hsl(var(--muted-foreground))]'
+            }
+            ${small ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2.5 py-1'}
+          `}
+        >
+          {source.isOfficial && <Shield size={small ? 8 : 9} />}
+          <span className="font-medium">[{source.domain}]</span>
+        </a>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
+      <TooltipContent side="top" className="max-w-xs p-3 rounded-xl bg-[#032b22] border border-[var(--glass-border)] text-white">
         <a href={source.url} target="_blank" rel="noopener noreferrer"
-          className="flex items-start gap-1.5 text-blue-600 dark:text-blue-400 font-medium text-xs mb-1 hover:underline">
+          className="flex items-start gap-1.5 gold-text font-medium text-xs mb-1.5 hover:underline no-underline">
           <ExternalLink size={10} className="mt-0.5 shrink-0" />
           {source.title}
         </a>
-        <p className="text-xs text-muted-foreground leading-relaxed">{source.snippet}</p>
-        {sovereign && (
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800/50 px-2 py-1 rounded-md">
-            <ShieldCheck size={11} />
-            Sovereign Verified — Official Cameroonian source
+        <p className="text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed">{source.snippet}</p>
+        {source.isOfficial && (
+          <div className="flex items-center gap-1 mt-2">
+            <Shield size={9} className="gold-text" />
+            <span className="text-[9px] gold-text font-semibold uppercase tracking-wider">Official Cameroonian Source</span>
           </div>
         )}
       </TooltipContent>
