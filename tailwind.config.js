@@ -5,18 +5,19 @@ module.exports = {
     "./index.html",
     "./src/**/*.{ts,tsx}",
   ],
-  theme: {
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
+ theme: {
+  extend: {
+    colors: {
+      // ... existing ...
+      // Sovereign palette
+      sovereign: {
+        green: '#0B3D2E',   // deep forest green
+        gold: '#C9A84C',     // metallic gold
+        light: '#F5F2E9',    // warm cream
+      },
+    },
+  },
+},
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
