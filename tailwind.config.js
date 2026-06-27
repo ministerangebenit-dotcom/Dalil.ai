@@ -1,23 +1,19 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
-  content: [
-    "./index.html",
-    "./src/**/*.{ts,tsx}",
-  ],
- theme: {
-  extend: {
-    colors: {
-      // ... existing ...
-      // Sovereign palette
-      sovereign: {
-        green: '#0B3D2E',   // deep forest green
-        gold: '#C9A84C',     // metallic gold
-        light: '#F5F2E9',    // warm cream
-      },
-    },
-  },
-},
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -42,6 +38,13 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // ─── Sovereign palette ───
+        sovereign: {
+          green:  '#0B3D2E',
+          gold:   '#C9A84C',
+          light:  '#F5F2E9',
+          dark:   '#1A2F1F',
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -57,23 +60,23 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+        "pulse-gentle": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.03)" },
+        },
+        "bounce-in": {
+          "0%": { transform: "scale(0.9)", opacity: "0" },
+          "60%": { transform: "scale(1.02)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-gentle": "pulse-gentle 2.5s ease-in-out infinite",
+        "bounce-in": "bounce-in 0.4s ease-out",
       },
     },
   },
   plugins: [require("tailwindcss-animate")],
 }
-
-keyframes: {
-  // ... existing ...
-  'pulse-gentle': {
-    '0%, 100%': { transform: 'scale(1)' },
-    '50%': { transform: 'scale(1.02)' },
-  },
-},
-animation: {
-  'pulse-gentle': 'pulse-gentle 3s ease-in-out infinite',
-},
