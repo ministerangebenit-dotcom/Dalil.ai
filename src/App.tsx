@@ -129,7 +129,7 @@ export default function App() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto px-4 py-8">
-              {messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+  {messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
               {isTyping && (
                 <div className="flex gap-3 mb-8">
                   <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
