@@ -5,6 +5,11 @@ import { mockFetchResponse } from './data/mock-responses';
 import { Bot, Globe, Shield, BookOpen, Building2 } from 'lucide-react';
 import './index.css';
 
+<header className="border-b bg-gradient-to-r from-sovereign-green to-green-900 p-3 flex items-center gap-2">
+  <div className="w-7 h-7 bg-sovereign-gold rounded-full flex items-center justify-center text-white font-bold text-sm">D</div>
+  <span className="font-semibold text-lg text-white">Dalil</span>
+</header>
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
