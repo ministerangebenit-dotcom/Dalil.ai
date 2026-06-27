@@ -7,7 +7,7 @@ interface Step { stepNumber: number; title: string; description: string; documen
 export function StepCard({ step, sources }: { step: Step; sources: Source[] }) {
   return (
     <div className="relative flex gap-4">
-      <div className="relative z-10 w-10 h-10 rounded-xl bg-background border-2 border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0 font-semibold text-sm text-blue-600">
+      <div className="relative z-10 w-10 h-10 rounded-xl bg-background border-2 border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0 font-semibold text-sm text-blue-600 animate-pulse-gentle">
         {step.stepNumber}
       </div>
       <div className="flex-1 mb-1 bg-[var(--dalil-surface)] border border-border rounded-2xl p-4 hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
