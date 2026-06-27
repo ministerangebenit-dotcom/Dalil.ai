@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { SearchBar } from './components/SearchBar';
 import { ChatMessage } from './components/chat/ChatMessage';
 import { SplashScreen } from './components/SplashScreen';
 import { NewsPanel } from './components/NewsPanel';
 import { mockFetchResponse } from './data/mock-responses';
-import { Bot, Globe, Shield, BookOpen, Building2, Cpu, Lock, Newspaper, EyeOff, Languages } from 'lucide-react';
+import { Bot, Lock, Newspaper, EyeOff, Languages, Plus, Shield, Cpu } from 'lucide-react';
 import type { Language } from './lib/i18n';
 import { t, getGreeting } from './lib/i18n';
 import './index.css';
@@ -13,6 +13,9 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: any;
+  streaming?: boolean;
+  streamedSummary?: string;
+  relatedQuestions?: string[];
 }
 
 const LANGS: { code: Language; label: string; flag: string }[] = [
@@ -20,6 +23,36 @@ const LANGS: { code: Language; label: string; flag: string }[] = [
   { code: 'fr', label: 'FR', flag: '🇫🇷' },
   { code: 'pid', label: 'PID', flag: '🇨🇲' },
 ];
+
+const RELATED_QUESTIONS: Record<string, string[]> = {
+  default: [
+    'What documents do I need to bring?',
+    'How much does this cost in total?',
+    'Are there any recent changes to this law?',
+  ],
+};
+
+function getRelatedQuestions(query: string, lang: Language): string[] {
+  const q = query.toLowerCase();
+  if (q.includes('company') || q.includes('entreprise') || q.includes('business')) {
+    return lang === 'fr'
+      ? ['Quel est le capital minimum pour une SARL ?', 'Comment obtenir un NIU fiscal ?', 'Quels impôts pour une nouvelle entreprise ?']
+      : lang === 'pid'
+      ? ['How much money I need to start ?', 'Which office I go first ?', 'How long e go take ?']
+      : ['What is the minimum capital for an SARL?', 'How do I get a tax ID number?', 'What taxes apply to new businesses?'];
+  }
+  if (q.includes('permit') || q.includes('permis') || q.includes('building')) {
+    return lang === 'fr'
+      ? ['Combien de temps pour un permis de construire ?', 'Quels plans sont requis ?', 'Peut-on construire sans permis ?']
+      : ['How long does a building permit take?', 'What plans are required?', 'What happens if I build without a permit?'];
+  }
+  if (q.includes('tax') || q.includes('impôt') || q.includes('fiscal')) {
+    return lang === 'fr'
+      ? ['Quelles sont les échéances fiscales au Cameroun ?', 'Comment déclarer la TVA ?', 'Existe-t-il des exonérations pour PME ?']
+      : ['What are the tax deadlines in Cameroon?', 'How do I declare VAT?', 'Are there SME tax exemptions?'];
+  }
+  return RELATED_QUESTIONS.default;
+}
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -30,8 +63,10 @@ export default function App() {
   const [showNews, setShowNews] = useState(false);
   const [incognito, setIncognito] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const searchBarRef = useRef<{ focus: () => void }>(null);
 
   const scanningMessages: string[] = t(lang, 'scanning') as string[];
 
@@ -43,7 +78,10 @@ export default function App() {
     if (!isTyping) { setScanningText(''); return; }
     let i = 0;
     setScanningText(scanningMessages[0]);
-    const iv = setInterval(() => { i = (i + 1) % scanningMessages.length; setScanningText(scanningMessages[i]); }, 440);
+    const iv = setInterval(() => {
+      i = (i + 1) % scanningMessages.length;
+      setScanningText(scanningMessages[i]);
+    }, 440);
     return () => clearInterval(iv);
   }, [isTyping, lang]);
 
@@ -55,22 +93,64 @@ export default function App() {
     return () => document.removeEventListener('mousedown', fn);
   }, []);
 
-  const handleSend = (query: string) => {
-    if (incognito) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: query }]);
-    } else {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: query }]);
-    }
+  // Ctrl+K global shortcut
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchBarRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, []);
+
+  const streamSummary = useCallback((fullText: string, messageId: string, onDone: () => void) => {
+    let i = 0;
+    const step = 3;
+    const iv = setInterval(() => {
+      i = Math.min(i + step, fullText.length);
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? { ...m, streamedSummary: fullText.slice(0, i) } : m
+      ));
+      if (i >= fullText.length) {
+        clearInterval(iv);
+        onDone();
+      }
+    }, 18);
+    return iv;
+  }, []);
+
+  const handleSend = useCallback((query: string) => {
+    const userMsgId = Date.now().toString();
+    const assistantMsgId = (Date.now() + 1).toString();
+
+    setMessages(prev => [...prev, { id: userMsgId, role: 'user', content: query }]);
     setIsTyping(true);
+
     setTimeout(() => {
+      const response = mockFetchResponse(query);
+      const related = getRelatedQuestions(query, lang);
+
+      // Insert assistant message with empty streamedSummary
       setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
+        id: assistantMsgId,
         role: 'assistant',
-        content: mockFetchResponse(query),
+        content: response,
+        streaming: true,
+        streamedSummary: '',
+        relatedQuestions: related,
       }]);
       setIsTyping(false);
-    }, 2600);
-  };
+
+      // Stream the summary
+      streamSummary(response.summary, assistantMsgId, () => {
+        setMessages(prev => prev.map(m =>
+          m.id === assistantMsgId ? { ...m, streaming: false } : m
+        ));
+      });
+    }, 2000);
+  }, [lang, streamSummary]);
 
   const isEmpty = messages.length === 0;
   const greeting = getGreeting(lang);
@@ -80,7 +160,7 @@ export default function App() {
 
   return (
     <div
-      className="flex h-screen overflow-hidden"
+      className="dalil-root"
       style={{
         background: incognito
           ? 'radial-gradient(ellipse at 20% 20%, #1e1b4b 0%, #0f0f1a 100%)'
@@ -90,67 +170,52 @@ export default function App() {
     >
       {/* Incognito ribbon */}
       {incognito && (
-        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-1.5" style={{ background: 'rgba(139,92,246,0.15)', borderBottom: '1px solid rgba(139,92,246,0.2)' }}>
-          <EyeOff size={11} className="text-violet-400" />
-          <span className="text-[10px] text-violet-400 font-medium tracking-wider uppercase">Mode Incognito — aucune donnée enregistrée</span>
-          <button onClick={() => setIncognito(false)} className="ml-2 text-[10px] text-violet-300 hover:text-white underline">Quitter</button>
+        <div className="incognito-ribbon">
+          <EyeOff size={11} style={{ color: '#a78bfa' }} />
+          <span>Mode Incognito — aucune donnée enregistrée</span>
+          <button onClick={() => setIncognito(false)}>Quitter</button>
         </div>
       )}
 
-      {/* Left sidebar */}
-      <aside
-        className="hidden md:flex flex-col w-60 shrink-0"
-        style={{
-          borderRight: '1px solid var(--glass-border)',
-          background: 'rgba(3,43,34,0.7)',
-          backdropFilter: 'blur(20px)',
-          paddingTop: incognito ? '32px' : 0,
-        }}
-      >
-        <div className="p-5" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold-border)' }}>
-              <Bot size={16} color="#fbbf24" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm text-white leading-none">Dalil</p>
-              <p className="text-[10px] text-emerald-400 mt-1 font-medium tracking-wide">SOVEREIGN ENGINE</p>
-            </div>
+      {/* Sidebar — desktop only */}
+      <aside className="dalil-sidebar" style={{ paddingTop: incognito ? 32 : 0 }}>
+        <div className="sidebar-logo">
+          <div className="logo-icon">
+            <Bot size={16} color="#fbbf24" />
+          </div>
+          <div>
+            <p className="logo-name">Dalil</p>
+            <p className="logo-sub">SOVEREIGN ENGINE</p>
           </div>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto">
-          <p className="text-[10px] font-semibold uppercase tracking-widest mb-3 px-1" style={{ color: 'hsl(var(--muted-foreground))' }}>{t(lang, 'domains')}</p>
+        <div className="sidebar-body">
+          <p className="sidebar-section-label">{t(lang, 'domains')}</p>
           {[
-            { label: t(lang, 'legal_admin') as string, icon: '⚖️' },
-            { label: t(lang, 'business') as string, icon: '💼' },
-            { label: t(lang, 'health') as string, icon: '🏥' },
-            { label: t(lang, 'education') as string, icon: '📚' },
-            { label: t(lang, 'digital') as string, icon: '🔐' },
-            { label: t(lang, 'agriculture') as string, icon: '🌾' },
+            { label: t(lang, 'legal_admin'), icon: '⚖️' },
+            { label: t(lang, 'business'), icon: '💼' },
+            { label: t(lang, 'health'), icon: '🏥' },
+            { label: t(lang, 'education'), icon: '📚' },
+            { label: t(lang, 'digital'), icon: '🔐' },
+            { label: t(lang, 'agriculture'), icon: '🌾' },
           ].map(d => (
-            <button key={d.label} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all text-left mb-0.5"
-              style={{ color: 'hsl(var(--muted-foreground))' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--glass-bg)'; (e.currentTarget as HTMLElement).style.color = 'white'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'hsl(var(--muted-foreground))'; }}
-            >
-              <span className="text-base leading-none">{d.icon}</span>
-              <span>{d.label}</span>
+            <button key={d.label as string} className="sidebar-domain-btn">
+              <span>{d.icon}</span>
+              <span>{d.label as string}</span>
             </button>
           ))}
         </div>
 
-        <div className="p-4 space-y-2" style={{ borderTop: '1px solid var(--glass-border)' }}>
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+        <div className="sidebar-footer">
+          <div className="sidebar-badge green">
             <Lock size={11} className="text-emerald-400 shrink-0" />
-            <p className="text-[10px] text-emerald-400 leading-snug font-medium">{t(lang, 'local_hosting')}<br />{t(lang, 'no_dependency')}</p>
+            <span>{t(lang, 'local_hosting')}<br />{t(lang, 'no_dependency')}</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg" style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold-border)' }}>
+          <div className="sidebar-badge gold">
             <Cpu size={11} color="#fbbf24" className="shrink-0" />
-            <p className="text-[10px] gold-text leading-snug font-medium">{t(lang, 'indexed')}</p>
+            <span>{t(lang, 'indexed')}</span>
           </div>
-          {/* Cameroon flag stripe */}
-          <div className="flex gap-1.5 px-3 pt-1">
+          <div className="flag-stripe">
             {['#064e3b', '#dc2626', '#fbbf24'].map((c, i) => (
               <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: c }} />
             ))}
@@ -158,56 +223,60 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="flex flex-col flex-1 min-w-0" style={{ paddingTop: incognito ? '32px' : 0 }}>
+      {/* Main content */}
+      <div className="dalil-main" style={{ paddingTop: incognito ? 32 : 0 }}>
+
         {/* Header */}
-        <header
-          className="flex items-center justify-between px-5 py-3 sticky top-0 z-10"
-          style={{ borderBottom: '1px solid var(--glass-border)', background: 'rgba(3,43,34,0.6)', backdropFilter: 'blur(20px)' }}
-        >
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold-border)' }}>
+        <header className="dalil-header">
+          {/* Mobile logo */}
+          <div className="mobile-logo">
+            <div className="logo-icon-sm">
               <Bot size={13} color="#fbbf24" />
             </div>
-            <span className="font-semibold text-sm text-white">Dalil</span>
+            <span>Dalil</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop status */}
+          <div className="desktop-status">
             <div className="pulse-dot" />
-            <span className="text-xs text-emerald-400 font-medium" style={{ minWidth: 200 }}>
-              {isTyping ? <span className="scanning-text">{scanningText}</span> : 'Sovereign retrieval active'}
+            <span className="status-text">
+              {isTyping
+                ? <span className="scanning-text">{scanningText}</span>
+                : 'Sovereign retrieval active'}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Language toggle */}
+          {/* Header actions */}
+          <div className="header-actions">
+            {/* New chat */}
+            <button
+              onClick={() => setMessages([])}
+              className="header-btn icon-only"
+              title="New chat"
+            >
+              <Plus size={14} />
+            </button>
+
+            {/* Language */}
             <div className="relative" ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu(p => !p)}
-                className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-all hover:border-[var(--gold-border)]"
-                style={{ background: 'var(--glass-bg)', borderColor: 'var(--glass-border)', color: 'hsl(var(--muted-foreground))' }}
+                className="header-btn"
               >
                 <Languages size={12} />
-                <span className="text-white font-medium">{LANGS.find(l => l.code === lang)?.flag} {LANGS.find(l => l.code === lang)?.label}</span>
+                <span>{LANGS.find(l => l.code === lang)?.flag} {LANGS.find(l => l.code === lang)?.label}</span>
               </button>
               {showLangMenu && (
-                <div
-                  className="absolute top-full right-0 mt-1.5 z-50 rounded-xl overflow-hidden"
-                  style={{ background: 'rgba(3,43,34,0.97)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', minWidth: 120, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
-                >
+                <div className="dropdown-menu" style={{ right: 0, minWidth: 120 }}>
                   {LANGS.map(l => (
                     <button
                       key={l.code}
                       onClick={() => { setLang(l.code); setShowLangMenu(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs transition-all text-left"
-                      style={{
-                        background: lang === l.code ? 'var(--gold-dim)' : 'transparent',
-                        color: lang === l.code ? 'var(--gold)' : 'hsl(var(--muted-foreground))',
-                      }}
+                      className={`dropdown-item ${lang === l.code ? 'active' : ''}`}
                     >
                       <span>{l.flag}</span>
-                      <span className="font-medium">{l.label}</span>
-                      {lang === l.code && <span className="ml-auto text-[9px]">✓</span>}
+                      <span>{l.label}</span>
+                      {lang === l.code && <span className="ml-auto">✓</span>}
                     </button>
                   ))}
                 </div>
@@ -217,33 +286,23 @@ export default function App() {
             {/* Incognito */}
             <button
               onClick={() => setIncognito(p => !p)}
-              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-all"
-              style={{
-                background: incognito ? 'rgba(139,92,246,0.12)' : 'var(--glass-bg)',
-                borderColor: incognito ? 'rgba(139,92,246,0.35)' : 'var(--glass-border)',
-                color: incognito ? '#a78bfa' : 'hsl(var(--muted-foreground))',
-              }}
+              className={`header-btn ${incognito ? 'active-violet' : ''}`}
             >
               <EyeOff size={12} />
-              <span className="hidden sm:inline">{t(lang, 'incognito')}</span>
+              <span className="hide-xs">{t(lang, 'incognito')}</span>
             </button>
 
-            {/* News toggle */}
+            {/* News */}
             <button
               onClick={() => setShowNews(p => !p)}
-              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-all"
-              style={{
-                background: showNews ? 'rgba(220,38,38,0.1)' : 'var(--glass-bg)',
-                borderColor: showNews ? 'rgba(220,38,38,0.3)' : 'var(--glass-border)',
-                color: showNews ? '#f87171' : 'hsl(var(--muted-foreground))',
-              }}
+              className={`header-btn ${showNews ? 'active-red' : ''}`}
             >
               <Newspaper size={12} />
-              <span className="hidden sm:inline">{t(lang, 'news_title')}</span>
-              {showNews && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
+              <span className="hide-xs">{t(lang, 'news_title')}</span>
+              {showNews && <span className="live-dot" />}
             </button>
 
-            <span className="sovereign-badge hidden sm:flex">
+            <span className="sovereign-badge hide-sm">
               <Shield size={9} />
               Sovereign
             </span>
@@ -251,47 +310,36 @@ export default function App() {
         </header>
 
         {/* Body */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Chat area */}
-          <main className="flex-1 overflow-y-auto relative">
+        <div className="dalil-body">
+          <main className="dalil-chat">
             {isEmpty ? (
-              <div className="flex flex-col items-center justify-center min-h-full px-6 py-16">
-                {/* Watermark greeting */}
-                <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-                  <h1
-                    style={{
-                      fontSize: 'clamp(28px, 5vw, 48px)',
-                      fontWeight: 100,
-                      letterSpacing: '0.05em',
-                      color: 'rgba(255,255,255,0.12)',
-                      margin: 0,
-                      lineHeight: 1.2,
-                      userSelect: 'none',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {greeting}
-                  </h1>
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.18)', marginTop: 8, fontWeight: 300, letterSpacing: '0.02em' }}>
-                    {greetingSub}
-                  </p>
-                </div>
+              <div className="empty-state">
+                <h1 className="watermark-greeting">{greeting}</h1>
+                <p className="watermark-sub">{greetingSub}</p>
+                <p className="shortcut-hint">
+                  <kbd>Ctrl</kbd> + <kbd>K</kbd> to focus search
+                </p>
               </div>
             ) : (
-              <div className="max-w-3xl mx-auto px-4 py-8">
-                {messages.map(msg => <ChatMessage key={msg.id} message={msg} lang={lang} />)}
+              <div className="messages-container">
+                {messages.map(msg => (
+                  <ChatMessage
+                    key={msg.id}
+                    message={msg}
+                    lang={lang}
+                    onFollowUp={handleSend}
+                  />
+                ))}
                 {isTyping && (
-                  <div className="flex gap-3 mb-8">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                      style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold-border)' }}>
+                  <div className="typing-indicator">
+                    <div className="typing-avatar">
                       <Bot size={14} color="#fbbf24" />
                     </div>
-                    <div className="glass-card flex flex-col gap-2 px-5 py-4">
+                    <div className="typing-bubble glass-card">
                       <span className="scanning-text">{scanningText}</span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="typing-dots">
                         {[0, 150, 300].map(d => (
-                          <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
-                            style={{ background: 'var(--gold)', opacity: 0.6, animationDelay: `${d}ms` }} />
+                          <span key={d} className="typing-dot" style={{ animationDelay: `${d}ms` }} />
                         ))}
                       </div>
                     </div>
@@ -304,35 +352,29 @@ export default function App() {
 
           {/* News panel */}
           {showNews && (
-            <aside
-              className="hidden lg:flex flex-col w-72 shrink-0"
-              style={{
-                borderLeft: '1px solid var(--glass-border)',
-                background: 'rgba(3,43,34,0.6)',
-                backdropFilter: 'blur(20px)',
-              }}
-            >
+            <aside className="news-panel">
               <NewsPanel lang={lang} onClose={() => setShowNews(false)} />
             </aside>
           )}
         </div>
 
         {/* Bottom bar */}
-        <div
-          className="px-4 py-4 sticky bottom-0"
-          style={{ borderTop: '1px solid var(--glass-border)', background: 'rgba(3,43,34,0.7)', backdropFilter: 'blur(20px)' }}
-        >
-          <div className="max-w-3xl mx-auto">
-            <SearchBar onSend={handleSend} disabled={isTyping} lang={lang} incognito={incognito} />
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex gap-1">
+        <div className="dalil-bottom">
+          <div className="bottom-inner">
+            <SearchBar
+              ref={searchBarRef}
+              onSend={handleSend}
+              disabled={isTyping}
+              lang={lang}
+              incognito={incognito}
+            />
+            <div className="bottom-meta">
+              <div className="flag-stripe-sm">
                 {['#064e3b', '#dc2626', '#fbbf24'].map((c, i) => (
-                  <div key={i} style={{ width: 16, height: 2, borderRadius: 99, background: c, opacity: 0.6 }} />
+                  <div key={i} style={{ width: 14, height: 2, borderRadius: 99, background: c, opacity: 0.5 }} />
                 ))}
               </div>
-              <p className="text-[10px] tracking-wide" style={{ color: 'hsl(var(--muted-foreground))' }}>
-                {t(lang, 'tagline')}
-              </p>
+              <p className="tagline">{t(lang, 'tagline')}</p>
             </div>
           </div>
         </div>
