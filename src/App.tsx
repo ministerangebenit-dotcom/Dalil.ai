@@ -130,6 +130,7 @@ export default function App() {
           ) : (
             <div className="max-w-3xl mx-auto px-4 py-8">
   {messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+              <main className={`flex-1 overflow-y-auto ${!isEmpty ? 'bg-gradient-to-b from-white via-white to-blue-50/20 dark:from-gray-950 dark:via-gray-950 dark:to-emerald-950/10' : ''}`}>
               {isTyping && (
                 <div className="flex gap-3 mb-8">
                   <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
