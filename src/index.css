@@ -33,36 +33,16 @@
     --dalil-surface: #F8FAFC;
     --dalil-border: #E2E8F0;
   }
-
-  .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 95%;
-    --card: 222 35% 10%;
-    --card-foreground: 210 40% 95%;
-    --popover: 222 35% 10%;
-    --popover-foreground: 210 40% 95%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 222 25% 15%;
-    --secondary-foreground: 210 40% 85%;
-    --muted: 222 25% 15%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 222 25% 18%;
-    --accent-foreground: 210 40% 90%;
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 25% 18%;
-    --input: 222 25% 18%;
-    --ring: 217 91% 60%;
-    --dalil-blue: #3B82F6;
-    --dalil-blue-light: #1E3A5F;
-    --dalil-green: #10B981;
-    --dalil-green-light: #064E3B;
-    --dalil-amber: #F59E0B;
-    --dalil-amber-light: #451A03;
-    --dalil-surface: #0F172A;
-    --dalil-border: #1E293B;
-  }
+.dark {
+  --background: 160 50% 8%;        /* deep green-black */
+  --foreground: 40 30% 90%;
+  --primary: 45 50% 55%;           /* gold */
+  --primary-foreground: 0 0% 10%;
+  --secondary: 160 30% 15%;
+  --accent: 45 40% 50%;
+  --border: 160 20% 20%;
+  /* ... adjust other variables as needed */
+}
 
   * { @apply border-border; box-sizing: border-box; }
   body { @apply bg-background text-foreground; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
