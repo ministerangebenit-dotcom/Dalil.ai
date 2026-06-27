@@ -1,35 +1,89 @@
+import { useState } from 'react';
 import { ProceduralAnswer } from './ProceduralAnswer';
-import { User, Bot } from 'lucide-react';
+import { User, Bot, Copy, Check } from 'lucide-react';
 import type { Language } from '../../lib/i18n';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: any;
+  streaming?: boolean;
+  streamedSummary?: string;
+  relatedQuestions?: string[];
 }
 
-export function ChatMessage({ message, lang }: { message: Message; lang: Language }) {
+interface ChatMessageProps {
+  message: Message;
+  lang: Language;
+  onFollowUp: (q: string) => void;
+}
+
+export function ChatMessage({ message, lang, onFollowUp }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    const text = typeof message.content === 'string'
+      ? message.content
+      : message.content?.summary ?? '';
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
-    <div className={`flex gap-3 mb-8 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`chat-message ${isUser ? 'user' : 'assistant'}`}>
+      {/* Avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-          style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold-border)' }}>
+        <div className="msg-avatar gold">
           <Bot size={14} color="#fbbf24" />
         </div>
       )}
-      <div className={`${isUser ? 'max-w-[75%]' : 'flex-1 min-w-0'}`}>
+
+      <div className={`msg-body ${isUser ? 'user' : 'assistant'}`}>
         {isUser ? (
-          <div className="glass-card px-4 py-3 text-sm text-white leading-relaxed">
-            {message.content}
-          </div>
+          <div className="user-bubble">{message.content}</div>
         ) : (
-          <ProceduralAnswer data={message.content} lang={lang} />
+          <div className="assistant-body">
+            {/* Copy button */}
+            <div className="msg-actions">
+              <button onClick={handleCopy} className="copy-btn" title="Copy">
+                {copied ? <Check size={12} style={{ color: '#10b981' }} /> : <Copy size={12} />}
+              </button>
+            </div>
+
+            <ProceduralAnswer
+              data={message.content}
+              lang={lang}
+              streaming={message.streaming}
+              streamedSummary={message.streamedSummary}
+            />
+
+            {/* Related questions — only when done streaming */}
+            {!message.streaming && message.relatedQuestions && message.relatedQuestions.length > 0 && (
+              <div className="related-questions">
+                <p className="related-label">Related</p>
+                <div className="related-list">
+                  {message.relatedQuestions.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onFollowUp(q)}
+                      className="related-item"
+                    >
+                      <span className="related-arrow">→</span>
+                      <span>{q}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
+
       {isUser && (
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-          style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+        <div className="msg-avatar user">
           <User size={13} style={{ color: 'hsl(var(--muted-foreground))' }} />
         </div>
       )}
