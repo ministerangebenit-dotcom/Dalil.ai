@@ -66,3 +66,14 @@ module.exports = {
   },
   plugins: [require("tailwindcss-animate")],
 }
+
+keyframes: {
+  // ... existing ...
+  'pulse-gentle': {
+    '0%, 100%': { transform: 'scale(1)' },
+    '50%': { transform: 'scale(1.02)' },
+  },
+},
+animation: {
+  'pulse-gentle': 'pulse-gentle 3s ease-in-out infinite',
+},
