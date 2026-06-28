@@ -1,6 +1,7 @@
 import { mockFetchResponse } from '../data/mock-responses';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://dalilai-app.up.railway.app';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string
+  || 'https://dalilai-app.up.railway.app';
 
 export interface DalilResponse {
   sovereignVerified: boolean;
@@ -32,6 +33,8 @@ export async function queryDalil(
   message: string,
   language: string = 'fr'
 ): Promise<DalilResponse> {
+  console.log('[Dalil] Calling backend:', BACKEND_URL);
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -48,19 +51,18 @@ export async function queryDalil(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      throw new Error(`Backend error: ${response.status}`);
+      throw new Error(`Backend error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('[Dalil] Backend response received:', data);
 
-    // Validate structure — fallback to mock if malformed
     if (!data.answer || typeof data.answer !== 'object') {
       throw new Error('Malformed response from backend');
     }
 
     const answer = data.answer;
 
-    // Ensure required fields exist
     return {
       sovereignVerified: answer.sovereignVerified ?? false,
       summary: answer.summary ?? 'Réponse reçue.',
@@ -71,19 +73,27 @@ export async function queryDalil(
       sources: Array.isArray(answer.sources) ? answer.sources : [],
     };
 
-  } catch (error) {
-    console.warn('[Dalil] Backend unreachable, using mock fallback:', error);
-    // Graceful fallback to mock during demo
-    return mockFetchResponse(message) as DalilResponse;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn('[Dalil] Request timed out — falling back to mock');
+    } else {
+      console.warn('[Dalil] Backend unreachable:', error.message, '— falling back to mock');
+    }
+    return mockFetchResponse(message) as unknown as DalilResponse;
   }
 }
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${BACKEND_URL}/health`, { method: 'GET' });
+    const res = await fetch(`${BACKEND_URL}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000),
+    });
     const data = await res.json();
+    console.log('[Dalil] Health check:', data);
     return data.status === 'healthy';
-  } catch {
+  } catch (err) {
+    console.warn('[Dalil] Health check failed:', err);
     return false;
   }
 }
