@@ -1,9 +1,19 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(
     title="Dalil API",
     version="1.0.0"
+)
+
+# ✅ ADD THIS BLOCK
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -16,10 +26,6 @@ def root():
 def health():
     return {"status": "healthy"}
 
-
-# -------------------------
-# CHAT ENDPOINT (DUMMY)
-# -------------------------
 
 class ChatRequest(BaseModel):
     message: str
