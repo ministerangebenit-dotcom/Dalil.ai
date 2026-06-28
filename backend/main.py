@@ -1,3 +1,4 @@
+from rag import search
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,51 +23,36 @@ app.add_middleware(
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
-@app.get("/")
-def root():
-    return {"message": "Welcome to the Dalil API!"}
-
-
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
-
-
-# Request model
-class ChatRequest(BaseModel):
-    message: str
-
-
-# REAL AI CHAT ENDPOINT
 @app.post("/chat")
 def chat(req: ChatRequest):
 
-    system_prompt = """
-You are Dalil, an intelligent assistant focused on providing clear, structured, and practical answers.
+    # 1. retrieve relevant context
+    context_docs = search(req.message)
+
+    context_text = "\n".join(context_docs) if context_docs else "No context available."
+
+    system_prompt = f"""
+You are Dalil.
+
+Use the following context if relevant:
+
+{context_text}
 
 Rules:
-- Be concise and precise
-- Prefer structured answers (bullet points when useful)
-- If you are unsure, say so clearly
-- Do not hallucinate facts
-- Focus on actionable insights
+- Use context when useful
+- If context is irrelevant, ignore it
+- Be clear and structured
 """
 
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": req.message
-            }
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": req.message}
         ]
     )
 
     return {
         "answer": response.choices[0].message.content,
-        "sources": []
+        "sources": context_docs
     }
