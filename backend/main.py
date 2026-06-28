@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from groq import Groq
 import os
 import json
+import traceback
 
 app = FastAPI(title="Dalil API", version="1.0.0")
 
@@ -15,22 +16,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 SYSTEM_PROMPT = """You are Dalil, a sovereign Cameroonian AI knowledge engine.
-You answer questions exclusively using knowledge about Cameroon — its laws, 
-administrative procedures, government institutions, business regulations, 
+You answer questions exclusively using knowledge about Cameroon — its laws,
+administrative procedures, government institutions, business regulations,
 tax obligations, and official processes.
 
 CRITICAL RULES:
 - Only answer questions related to Cameroon
 - Always cite Cameroonian sources (minfi.gov.cm, cnps.cm, apme.cm, etc.)
-- Structure every answer as a JSON object with this exact format:
+- Structure every answer as a JSON object with this EXACT format, no extra text:
 {
   "sovereignVerified": true,
-  "summary": "Brief 1-2 sentence overview of the answer",
-  "totalTime": "estimated time if applicable, else null",
-  "totalCost": "estimated cost in FCFA if applicable, else null",
+  "summary": "Brief 1-2 sentence overview",
+  "totalTime": "estimated time or null",
+  "totalCost": "estimated cost in FCFA or null",
   "steps": [
     {
       "stepNumber": 1,
@@ -39,7 +40,7 @@ CRITICAL RULES:
       "documents": ["doc1", "doc2"],
       "time": "time for this step",
       "cost": "cost for this step",
-      "risk": "common mistake or risk",
+      "risk": "common mistake or risk, empty string if none",
       "sources": [1],
       "type": "standard"
     }
@@ -49,35 +50,50 @@ CRITICAL RULES:
     {
       "title": "Source title",
       "url": "https://actual-url.cm",
-      "snippet": "Brief description of what this source contains",
+      "snippet": "Brief description",
       "domain": "domain.cm",
       "isOfficial": true
     }
   ]
 }
 
-- type can be: "standard", "law", or "contact"
-- isOfficial must be true only for .gov.cm or official institution domains
-- If the question is not about Cameroon, return the JSON with summary explaining you only cover Cameroon
-- Always respond with valid JSON only, no markdown, no explanation outside JSON
+- type must be one of: "standard", "law", or "contact"
+- isOfficial must be true only for .gov.cm or well-known official institution domains
+- Respond with valid JSON ONLY — no markdown fences, no explanation outside JSON
 """
 
 class ChatRequest(BaseModel):
     message: str
     language: str = "fr"
 
-class ChatResponse(BaseModel):
-    answer: dict
-    raw: str
+@app.get("/")
+def root():
+    return {
+        "service": "Dalil — Cameroon Sovereign Knowledge Engine",
+        "status": "running",
+        "groq_key_set": bool(GROQ_API_KEY),
+        "docs": "/docs"
+    }
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "service": "Dalil API", "version": "1.0.0"}
+    return {
+        "status": "healthy",
+        "service": "Dalil API",
+        "version": "1.0.0",
+        "groq_key_set": bool(GROQ_API_KEY)
+    }
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if not GROQ_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="GROQ_API_KEY not set. Add it in Railway Variables."
+        )
 
     lang_instruction = {
         "fr": "Réponds en français.",
@@ -86,6 +102,8 @@ async def chat(request: ChatRequest):
     }.get(request.language, "Réponds en français.")
 
     try:
+        client = Groq(api_key=GROQ_API_KEY)
+
         completion = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
@@ -104,34 +122,12 @@ async def chat(request: ChatRequest):
 
         raw_response = completion.choices[0].message.content.strip()
 
-        # Clean markdown if model wraps in ```json
+        # Strip markdown fences if model adds them
         if raw_response.startswith("```"):
             lines = raw_response.split("\n")
-            raw_response = "\n".join(lines[1:-1])
+            raw_response = "\n".join(
+                line for line in lines
+                if not line.startswith("```")
+            ).strip()
 
         try:
-            parsed = json.loads(raw_response)
-        except json.JSONDecodeError:
-            # Fallback: wrap raw text in minimal structure
-            parsed = {
-                "sovereignVerified": False,
-                "summary": raw_response[:300],
-                "totalTime": None,
-                "totalCost": None,
-                "steps": [],
-                "commonMistakes": [],
-                "sources": []
-            }
-
-        return {"answer": parsed, "raw": raw_response}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/")
-def root():
-    return {
-        "service": "Dalil — Cameroon Sovereign Knowledge Engine",
-        "status": "running",
-        "docs": "/docs"
-    }
