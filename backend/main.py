@@ -56,3 +56,14 @@ Rules:
         "answer": response.choices[0].message.content,
         "sources": context_docs
     }
+    
+    class IngestRequest(BaseModel):
+    id: str
+    text: str
+
+
+@app.post("/ingest")
+def ingest(req: IngestRequest):
+    add_document(req.id, req.text)
+    return {"status": "added"}
+    
