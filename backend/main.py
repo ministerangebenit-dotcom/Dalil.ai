@@ -19,61 +19,59 @@ app.add_middleware(
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 SYSTEM_PROMPT = """You are Dalil, a sovereign Cameroonian AI knowledge engine.
-You answer questions exclusively using knowledge about Cameroon — its laws,
-administrative procedures, government institutions, business regulations,
-tax obligations, and official processes.
+You answer questions exclusively using knowledge about Cameroon.
 
-CRITICAL RULES:
-- Only answer questions related to Cameroon
-- Always cite Cameroonian sources (minfi.gov.cm, cnps.cm, apme.cm, etc.)
-- Structure every answer as a JSON object with this EXACT format, no extra text:
+Always respond with this exact JSON structure and nothing else:
 {
   "sovereignVerified": true,
-  "summary": "Brief 1-2 sentence overview",
+  "summary": "1-2 sentence overview",
   "totalTime": "estimated time or null",
   "totalCost": "estimated cost in FCFA or null",
   "steps": [
     {
       "stepNumber": 1,
       "title": "Step title",
-      "description": "Detailed description",
-      "documents": ["doc1", "doc2"],
-      "time": "time for this step",
-      "cost": "cost for this step",
-      "risk": "common mistake or risk, empty string if none",
+      "description": "Description",
+      "documents": ["doc1"],
+      "time": "time",
+      "cost": "cost",
+      "risk": "risk or empty string",
       "sources": [1],
       "type": "standard"
     }
   ],
-  "commonMistakes": ["mistake1", "mistake2"],
+  "commonMistakes": ["mistake1"],
   "sources": [
     {
       "title": "Source title",
-      "url": "https://actual-url.cm",
-      "snippet": "Brief description",
+      "url": "https://url.cm",
+      "snippet": "Description",
       "domain": "domain.cm",
       "isOfficial": true
     }
   ]
 }
 
-- type must be one of: "standard", "law", or "contact"
-- isOfficial must be true only for .gov.cm or well-known official institution domains
-- Respond with valid JSON ONLY — no markdown fences, no explanation outside JSON
+Rules:
+- type must be standard, law, or contact
+- isOfficial is true only for .gov.cm domains
+- No markdown, no text outside JSON
 """
+
 
 class ChatRequest(BaseModel):
     message: str
     language: str = "fr"
 
+
 @app.get("/")
 def root():
     return {
-        "service": "Dalil — Cameroon Sovereign Knowledge Engine",
+        "service": "Dalil API",
         "status": "running",
         "groq_key_set": bool(GROQ_API_KEY),
-        "docs": "/docs"
     }
+
 
 @app.get("/health")
 def health():
@@ -81,8 +79,9 @@ def health():
         "status": "healthy",
         "service": "Dalil API",
         "version": "1.0.0",
-        "groq_key_set": bool(GROQ_API_KEY)
+        "groq_key_set": bool(GROQ_API_KEY),
     }
+
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
@@ -92,14 +91,14 @@ async def chat(request: ChatRequest):
     if not GROQ_API_KEY:
         raise HTTPException(
             status_code=500,
-            detail="GROQ_API_KEY not set. Add it in Railway Variables."
+            detail="GROQ_API_KEY not set in Railway Variables",
         )
 
     lang_instruction = {
-        "fr": "Réponds en français.",
+        "fr": "Reponds en francais.",
         "en": "Reply in English.",
         "pid": "Reply in Cameroonian Pidgin English.",
-    }.get(request.language, "Réponds en français.")
+    }.get(request.language, "Reponds en francais.")
 
     try:
         client = Groq(api_key=GROQ_API_KEY)
@@ -109,25 +108,42 @@ async def chat(request: ChatRequest):
             messages=[
                 {
                     "role": "system",
-                    "content": SYSTEM_PROMPT + f"\n\nLanguage instruction: {lang_instruction}"
+                    "content": SYSTEM_PROMPT + "\n\n" + lang_instruction,
                 },
                 {
                     "role": "user",
-                    "content": request.message
-                }
+                    "content": request.message,
+                },
             ],
             temperature=0.3,
             max_tokens=2048,
         )
 
-        raw_response = completion.choices[0].message.content.strip()
+        raw = completion.choices[0].message.content.strip()
 
-        # Strip markdown fences if model adds them
-        if raw_response.startswith("```"):
-            lines = raw_response.split("\n")
-            raw_response = "\n".join(
-                line for line in lines
-                if not line.startswith("```")
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            raw = "\n".join(
+                line for line in lines if not line.startswith("```")
             ).strip()
 
         try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            parsed = {
+                "sovereignVerified": False,
+                "summary": raw[:400] if raw else "Erreur de parsing.",
+                "totalTime": None,
+                "totalCost": None,
+                "steps": [],
+                "commonMistakes": [],
+                "sources": [],
+            }
+
+        return {"answer": parsed, "raw": raw}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
