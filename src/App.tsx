@@ -3,7 +3,7 @@ import { SearchBar } from './components/SearchBar';
 import { ChatMessage } from './components/chat/ChatMessage';
 import { SplashScreen } from './components/SplashScreen';
 import { NewsPanel } from './components/NewsPanel';
-import { mockFetchResponse } from './data/mock-responses';
+import { queryDalil, checkBackendHealth } from './lib/api';
 import { Bot, Lock, Newspaper, EyeOff, Languages, Plus, Shield, Cpu } from 'lucide-react';
 import type { Language } from './lib/i18n';
 import { t, getGreeting } from './lib/i18n';
@@ -34,24 +34,38 @@ const RELATED_QUESTIONS: Record<string, string[]> = {
 
 function getRelatedQuestions(query: string, lang: Language): string[] {
   const q = query.toLowerCase();
-  if (q.includes('company') || q.includes('entreprise') || q.includes('business')) {
+  if (q.includes('company') || q.includes('entreprise') || q.includes('business') || q.includes('sarl')) {
     return lang === 'fr'
       ? ['Quel est le capital minimum pour une SARL ?', 'Comment obtenir un NIU fiscal ?', 'Quels impôts pour une nouvelle entreprise ?']
       : lang === 'pid'
       ? ['How much money I need to start ?', 'Which office I go first ?', 'How long e go take ?']
       : ['What is the minimum capital for an SARL?', 'How do I get a tax ID number?', 'What taxes apply to new businesses?'];
   }
-  if (q.includes('permit') || q.includes('permis') || q.includes('building')) {
+  if (q.includes('permit') || q.includes('permis') || q.includes('building') || q.includes('construire')) {
     return lang === 'fr'
       ? ['Combien de temps pour un permis de construire ?', 'Quels plans sont requis ?', 'Peut-on construire sans permis ?']
       : ['How long does a building permit take?', 'What plans are required?', 'What happens if I build without a permit?'];
   }
-  if (q.includes('tax') || q.includes('impôt') || q.includes('fiscal')) {
+  if (q.includes('tax') || q.includes('impôt') || q.includes('fiscal') || q.includes('tva')) {
     return lang === 'fr'
       ? ['Quelles sont les échéances fiscales au Cameroun ?', 'Comment déclarer la TVA ?', 'Existe-t-il des exonérations pour PME ?']
       : ['What are the tax deadlines in Cameroon?', 'How do I declare VAT?', 'Are there SME tax exemptions?'];
   }
-  return RELATED_QUESTIONS.default;
+  if (q.includes('passport') || q.includes('passeport') || q.includes('cni') || q.includes('identity')) {
+    return lang === 'fr'
+      ? ['Combien coûte un passeport camerounais ?', 'Où faire ma CNI à Yaoundé ?', 'Délai de délivrance du passeport ?']
+      : ['How much does a Cameroonian passport cost?', 'Where to get a national ID in Yaoundé?', 'How long does passport delivery take?'];
+  }
+  if (q.includes('cnps') || q.includes('social') || q.includes('retraite') || q.includes('pension')) {
+    return lang === 'fr'
+      ? ['Comment calculer les cotisations CNPS ?', 'Puis-je cotiser en tant qu\'indépendant ?', 'Comment obtenir une pension de retraite ?']
+      : ['How are CNPS contributions calculated?', 'Can I contribute as self-employed?', 'How to get a retirement pension in Cameroon?'];
+  }
+  return lang === 'fr'
+    ? ['Quels documents sont nécessaires ?', 'Quel est le coût total ?', 'Y a-t-il des changements récents à cette loi ?']
+    : lang === 'pid'
+    ? ['Wetin documents dem need ?', 'How much e go cost ?', 'Any new law for dis mata ?']
+    : RELATED_QUESTIONS.default;
 }
 
 export default function App() {
@@ -63,17 +77,20 @@ export default function App() {
   const [showNews, setShowNews] = useState(false);
   const [incognito, setIncognito] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const searchBarRef = useRef<{ focus: () => void }>(null);
 
   const scanningMessages: string[] = t(lang, 'scanning') as string[];
 
+  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Scanning text rotation while typing
   useEffect(() => {
     if (!isTyping) { setScanningText(''); return; }
     let i = 0;
@@ -81,13 +98,16 @@ export default function App() {
     const iv = setInterval(() => {
       i = (i + 1) % scanningMessages.length;
       setScanningText(scanningMessages[i]);
-    }, 440);
+    }, 500);
     return () => clearInterval(iv);
   }, [isTyping, lang]);
 
+  // Close lang menu on outside click
   useEffect(() => {
     const fn = (e: MouseEvent) => {
-      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) setShowLangMenu(false);
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setShowLangMenu(false);
+      }
     };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
@@ -105,7 +125,17 @@ export default function App() {
     return () => window.removeEventListener('keydown', fn);
   }, []);
 
-  const streamSummary = useCallback((fullText: string, messageId: string, onDone: () => void) => {
+  // Check backend health on mount
+  useEffect(() => {
+    checkBackendHealth().then(online => setBackendOnline(online));
+  }, []);
+
+  // Stream summary char by char
+  const streamSummary = useCallback((
+    fullText: string,
+    messageId: string,
+    onDone: () => void
+  ) => {
     let i = 0;
     const step = 3;
     const iv = setInterval(() => {
@@ -121,18 +151,21 @@ export default function App() {
     return iv;
   }, []);
 
-  const handleSend = useCallback((query: string) => {
+  const handleSend = useCallback(async (query: string) => {
     const userMsgId = Date.now().toString();
     const assistantMsgId = (Date.now() + 1).toString();
 
-    setMessages(prev => [...prev, { id: userMsgId, role: 'user', content: query }]);
+    setMessages(prev => [...prev, {
+      id: userMsgId,
+      role: 'user',
+      content: query,
+    }]);
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = mockFetchResponse(query);
+    try {
+      const response = await queryDalil(query, lang);
       const related = getRelatedQuestions(query, lang);
 
-      // Insert assistant message with empty streamedSummary
       setMessages(prev => [...prev, {
         id: assistantMsgId,
         role: 'assistant',
@@ -143,13 +176,16 @@ export default function App() {
       }]);
       setIsTyping(false);
 
-      // Stream the summary
       streamSummary(response.summary, assistantMsgId, () => {
         setMessages(prev => prev.map(m =>
           m.id === assistantMsgId ? { ...m, streaming: false } : m
         ));
       });
-    }, 2000);
+
+    } catch (error) {
+      setIsTyping(false);
+      console.error('[Dalil] handleSend error:', error);
+    }
   }, [lang, streamSummary]);
 
   const isEmpty = messages.length === 0;
@@ -190,30 +226,30 @@ export default function App() {
         </div>
 
         <div className="sidebar-body">
-          <p className="sidebar-section-label">{t(lang, 'domains')}</p>
+          <p className="sidebar-section-label">{t(lang, 'domains') as string}</p>
           {[
-            { label: t(lang, 'legal_admin'), icon: '⚖️' },
-            { label: t(lang, 'business'), icon: '💼' },
-            { label: t(lang, 'health'), icon: '🏥' },
-            { label: t(lang, 'education'), icon: '📚' },
-            { label: t(lang, 'digital'), icon: '🔐' },
-            { label: t(lang, 'agriculture'), icon: '🌾' },
+            { label: t(lang, 'legal_admin') as string, icon: '⚖️' },
+            { label: t(lang, 'business') as string, icon: '💼' },
+            { label: t(lang, 'health') as string, icon: '🏥' },
+            { label: t(lang, 'education') as string, icon: '📚' },
+            { label: t(lang, 'digital') as string, icon: '🔐' },
+            { label: t(lang, 'agriculture') as string, icon: '🌾' },
           ].map(d => (
-            <button key={d.label as string} className="sidebar-domain-btn">
+            <button key={d.label} className="sidebar-domain-btn">
               <span>{d.icon}</span>
-              <span>{d.label as string}</span>
+              <span>{d.label}</span>
             </button>
           ))}
         </div>
 
         <div className="sidebar-footer">
           <div className="sidebar-badge green">
-            <Lock size={11} className="text-emerald-400 shrink-0" />
-            <span>{t(lang, 'local_hosting')}<br />{t(lang, 'no_dependency')}</span>
+            <Lock size={11} style={{ color: '#34d399', flexShrink: 0 }} />
+            <span>{t(lang, 'local_hosting') as string}<br />{t(lang, 'no_dependency') as string}</span>
           </div>
           <div className="sidebar-badge gold">
-            <Cpu size={11} color="#fbbf24" className="shrink-0" />
-            <span>{t(lang, 'indexed')}</span>
+            <Cpu size={11} color="#fbbf24" style={{ flexShrink: 0 }} />
+            <span>{t(lang, 'indexed') as string}</span>
           </div>
           <div className="flag-stripe">
             {['#064e3b', '#dc2626', '#fbbf24'].map((c, i) => (
@@ -238,11 +274,15 @@ export default function App() {
 
           {/* Desktop status */}
           <div className="desktop-status">
-            <div className="pulse-dot" />
+            <div className={`pulse-dot ${backendOnline === false ? 'offline' : ''}`} />
             <span className="status-text">
               {isTyping
                 ? <span className="scanning-text">{scanningText}</span>
-                : 'Sovereign retrieval active'}
+                : backendOnline === false
+                ? 'Demo mode — backend offline'
+                : backendOnline === true
+                ? 'Sovereign retrieval active'
+                : 'Connecting...'}
             </span>
           </div>
 
@@ -257,7 +297,7 @@ export default function App() {
               <Plus size={14} />
             </button>
 
-            {/* Language */}
+            {/* Language toggle */}
             <div className="relative" ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu(p => !p)}
@@ -276,7 +316,7 @@ export default function App() {
                     >
                       <span>{l.flag}</span>
                       <span>{l.label}</span>
-                      {lang === l.code && <span className="ml-auto">✓</span>}
+                      {lang === l.code && <span style={{ marginLeft: 'auto' }}>✓</span>}
                     </button>
                   ))}
                 </div>
@@ -289,7 +329,7 @@ export default function App() {
               className={`header-btn ${incognito ? 'active-violet' : ''}`}
             >
               <EyeOff size={12} />
-              <span className="hide-xs">{t(lang, 'incognito')}</span>
+              <span className="hide-xs">{t(lang, 'incognito') as string}</span>
             </button>
 
             {/* News */}
@@ -298,7 +338,7 @@ export default function App() {
               className={`header-btn ${showNews ? 'active-red' : ''}`}
             >
               <Newspaper size={12} />
-              <span className="hide-xs">{t(lang, 'news_title')}</span>
+              <span className="hide-xs">{t(lang, 'news_title') as string}</span>
               {showNews && <span className="live-dot" />}
             </button>
 
@@ -311,6 +351,8 @@ export default function App() {
 
         {/* Body */}
         <div className="dalil-body">
+
+          {/* Chat area */}
           <main className="dalil-chat">
             {isEmpty ? (
               <div className="empty-state">
@@ -339,7 +381,11 @@ export default function App() {
                       <span className="scanning-text">{scanningText}</span>
                       <div className="typing-dots">
                         {[0, 150, 300].map(d => (
-                          <span key={d} className="typing-dot" style={{ animationDelay: `${d}ms` }} />
+                          <span
+                            key={d}
+                            className="typing-dot"
+                            style={{ animationDelay: `${d}ms` }}
+                          />
                         ))}
                       </div>
                     </div>
@@ -350,7 +396,7 @@ export default function App() {
             )}
           </main>
 
-          {/* News panel */}
+          {/* News panel — desktop only */}
           {showNews && (
             <aside className="news-panel">
               <NewsPanel lang={lang} onClose={() => setShowNews(false)} />
@@ -358,7 +404,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Bottom bar */}
+        {/* Bottom search bar */}
         <div className="dalil-bottom">
           <div className="bottom-inner">
             <SearchBar
@@ -371,13 +417,17 @@ export default function App() {
             <div className="bottom-meta">
               <div className="flag-stripe-sm">
                 {['#064e3b', '#dc2626', '#fbbf24'].map((c, i) => (
-                  <div key={i} style={{ width: 14, height: 2, borderRadius: 99, background: c, opacity: 0.5 }} />
+                  <div
+                    key={i}
+                    style={{ width: 14, height: 2, borderRadius: 99, background: c, opacity: 0.5 }}
+                  />
                 ))}
               </div>
-              <p className="tagline">{t(lang, 'tagline')}</p>
+              <p className="tagline">{t(lang, 'tagline') as string}</p>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
