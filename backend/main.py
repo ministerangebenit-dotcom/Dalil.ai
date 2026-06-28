@@ -41,24 +41,32 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 def chat(req: ChatRequest):
 
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {
-                    "role": "user",
-                    "content": req.message
-                }
-            ]
-        )
+    system_prompt = """
+You are Dalil, an intelligent assistant focused on providing clear, structured, and practical answers.
 
-        return {
-            "answer": response.choices[0].message.content,
-            "sources": []
-        }
+Rules:
+- Be concise and precise
+- Prefer structured answers (bullet points when useful)
+- If you are unsure, say so clearly
+- Do not hallucinate facts
+- Focus on actionable insights
+"""
 
-    except Exception as e:
-        return {
-            "answer": f"Error: {str(e)}",
-            "sources": []
-        }
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": req.message
+            }
+        ]
+    )
+
+    return {
+        "answer": response.choices[0].message.content,
+        "sources": []
+    }
