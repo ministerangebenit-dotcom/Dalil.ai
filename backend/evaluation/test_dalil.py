@@ -1,7 +1,7 @@
 import requests
 
 # 🔁 Replace this with your REAL Railway backend URL
-BACKEND_URL = "https://your-app.up.railway.app/chat"
+BACKEND_URL = "https://dalilai-app.railway.app/chat"
 
 # 🧪 Test dataset (you can expand this later)
 test_cases = [
